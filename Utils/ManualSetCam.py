@@ -1,5 +1,5 @@
 import pyfirmata2
-from Devices import NemaStepper
+from Utils.Devices import NemaStepper
 import tkinter
 ard = pyfirmata2.Arduino("COM4")
 ZS = NemaStepper(ard, 1600, 4, 7, 8)

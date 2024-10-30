@@ -2,14 +2,27 @@ import os
 import time
 import pyfirmata
 import pyfirmata.util
+import requests
 
-from Devices import NemaStepper
-from Encoders import EncoderAS5600
-from DunoTable import Table
-from DevicesOnLines import Rele
-from FullMega import MegaBoard
+from Utils.serianumber import repka_id, url_upload_logimage, username, password, url_update_log
+from Utils.Devices import NemaStepper
+from Utils.Encoders import EncoderAS5600
+from Utils.DunoTable import Table
+from Utils.DevicesOnLines import Rele
+from Utils.FullMega import MegaBoard
 import datetime
 import subprocess
+from PIL import Image
+import base64
+from io import BytesIO
+
+
+def update_log(command: str, tsdate: str, etap_time: int or str):
+    checks = {"username": username, "repka_id": repka_id, "password": password, "etap": command, "date": tsdate, "etap_time": etap_time}
+    try:
+        requests.post(url_update_log, json=checks)
+    except Exception as e:
+        print(e)
 
 
 def RotateTo(Distance, duno, Treshold=20, RollerRadius=18, Down=False):
@@ -118,12 +131,14 @@ def Run(Area="15x30", TimePyrge=10, TimeSpraying=360, date=0):
 
         # TABLE
         Stol = Table(Xstepper, YStepper, ZStepper, 1, UsbOn=UsbOn, Epin=EnablePin, PhotoWidth=PhotoWidth, PhotoHeight=PhotoHeight, XEnd=9, YEnd=10, Light=Ligth, Cam=Cam)
+        update_log("Init", date, int(time.time() - InitTime))
         # FIRST MOVE ###########################################################################
 
         file.write("Rotating to pyrge\n")
         file.close()
         RotatePyrgeTime = time.time()
         RotateTo(DISTANCE_PYRGING, Mega)
+        update_log("RotSpray", date, int(time.time() - RotatePyrgeTime))
 
         SprayTime = time.time()
         file = open(filename, "a", encoding="utf-8")
@@ -149,6 +164,7 @@ def Run(Area="15x30", TimePyrge=10, TimeSpraying=360, date=0):
         file.close()
 
         time.sleep(TimeSpraying)
+        update_log("Spray", date, int(time.time() - SprayTime))
 
         file = open(filename, "a", encoding="utf-8")
         file.write("Stop Spraying\n")
@@ -191,6 +207,7 @@ def Run(Area="15x30", TimePyrge=10, TimeSpraying=360, date=0):
 
         file.write("Go up\n")
         file.close()
+        update_log("Pyrge", date, int(time.time() - PyrgeTime))
 
         Mega.LiftStep(-600)
         file = open(filename, "a", encoding="utf-8")
@@ -202,6 +219,7 @@ def Run(Area="15x30", TimePyrge=10, TimeSpraying=360, date=0):
         TimeRotateToScan = time.time()
         RotateTo(DISTANCE_SCANNING-1, Mega, Down=True)
         RotateTo(1, Mega, Treshold=20)
+        update_log("RotScan", date, int(time.time() - TimeRotateToScan))
         Mega.RightStepperPinE.write(0)
 
         # FIFTH MOVE ###########################################################################
@@ -209,15 +227,59 @@ def Run(Area="15x30", TimePyrge=10, TimeSpraying=360, date=0):
         file.write("Start Scanning\n")
         file.close()
         TimeScan = time.time()
-        photo, result = Stol.ScanNow(directory, filename)
+        photo, result = Stol.ScanNow(directory, filename, Mega)
+        update_log("Scan", date, int(time.time() - TimeScan))
         Uno.exit()
 
-        Mega.LiftStep(-600)
-        Mega.RightStepperPinE.write(1)
-        Mega.exit()
+        TimeSend = time.time()
+        try:
+            img = Image.open(photo[0])
+            img2 = Image.open(photo[1])
+            img3 = Image.open(photo[2])
+
+            buffer = BytesIO()
+            buffer2 = BytesIO()
+            buffer3 = BytesIO()
+
+            img.save(buffer, format="JPEG")
+            img2.save(buffer2, format="JPEG")
+            img3.save(buffer3, format="JPEG")
+
+            img_byte = buffer.getvalue()
+            img2_byte = buffer2.getvalue()
+            img3_byte = buffer3.getvalue()
+
+            img_base64 = base64.b64encode(img_byte)
+            img2_base64 = base64.b64encode(img2_byte)
+            img3_base64 = base64.b64encode(img3_byte)
+
+            img_str = img_base64.decode('utf-8')
+            img2_str = img2_base64.decode('utf-8')
+            img3_str = img3_base64.decode('utf-8')
+
+            file = open(filename, "r", encoding="utf-8")
+            files = {"Image1": img_str, "Image2": img2_str, "Image3": img3_str, "File": file.read(), "repka_id": repka_id, "username": username, "date": date, "password": password, "result": result}
+            file.close()
+            try:
+                requests.post(url_upload_logimage, json=files)
+            except Exception as e:
+                file = open(filename, "a", encoding="utf-8")
+                file.write(str(e))
+                file.close()
+        except Exception as e:
+            file = open(filename, "a", encoding="utf-8")
+            file.write(str(e))
+            file.close()
+        update_log("Send", date, int(time.time() - TimeSend))
+        time.sleep(10)
     except Exception as e:
-        print(e)
+        file = open(filename, "a", encoding="utf-8")
+        file.write(str(e))
+        file.close()
+        update_log("error", date, str(e))
+    finally:
+        subprocess.run(["sudo", "reboot"])
 
 
 if __name__ == "__main__":
-    Run(Area="10x10", TimePyrge=50, TimeSpraying=120)
+    Run(Area="10x5", TimePyrge=5, TimeSpraying=10)

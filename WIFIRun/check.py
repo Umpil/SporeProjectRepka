@@ -3,7 +3,7 @@ import subprocess
 import time
 import requests
 import Full3
-from serianumber import repka_id, url, url_check, url_upload_image, url_upload_logimage, url_upload_log, username, password
+from Utils.serianumber import repka_id, url_check, username, password
 
 checks = {"username": username, "repka_id": repka_id, "password": password}
 time_ask = 300
