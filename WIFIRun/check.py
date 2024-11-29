@@ -17,9 +17,7 @@ try:
     if Next:
 
         today = datetime.datetime.today().replace(second=0, microsecond=0).timestamp()
-        print(Next - today)
         if Next - today > time_ask:
-            print(">t_ask")
             time.sleep(time_ask - 65)
             subprocess.run(["sudo", "reboot"])
         else:

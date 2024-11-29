@@ -1,16 +1,15 @@
 import time
 import os
-from FullMega import MegaBoard
-import PIL.Image
 import pyfirmata.util
 from Devices import NemaStepper
 import cv2
 import ultralytics
+sign = -1
 
 
 class Table:
     def __init__(self, XNema: NemaStepper, YNema: NemaStepper, ZNema: NemaStepper, CamIndex: int, PhotoWidth: int = 60,
-                 PhotoHeight: int = 46, StepsHeight: int = 22, StepsWidth: int = 18, Epin: int = 0,
+                 PhotoHeight: int = 46, StepsHeight: int = 40, StepsWidth: int = 108, Epin: int = 0,
                  XEnd: int = None, YEnd: int = None, Light=None, Cam=None, UsbOn=None, Neuro=False):
 
         self.XNema = XNema
@@ -25,9 +24,9 @@ class Table:
 
         self.CamIndex = CamIndex
 
-        self.XNema.SetSpeed(30)
-        self.YNema.SetSpeed(30)
-        self.ZNema.SetSpeed(2)
+        self.XNema.SetSpeed(60)
+        self.YNema.SetSpeed(60)
+        self.ZNema.SetSpeed(8)
 
         if Light:
             self.Light = Light
@@ -53,21 +52,24 @@ class Table:
 
         self.Neuro = Neuro
         if Neuro:
-            self.model = ultralytics.YOLO("/home/admin/PyFiles/best.pt")
+            self.model = ultralytics.YOLO("/home/admin/PyFiles/AIModels/best.pt")
 
     def SendToPos(self):
         self.EPin.write(0)
         time.sleep(0.003)
-        XPos = (self.PhotoWidth // 2) * self.StepsWidth
-        YPos = -1000 + (self.PhotoHeight//2) * self.StepsHeight * 2
-        self.XNema.Step(XPos)
-        self.YNema.Step(YPos)
+        # center_pos = (2000, 4000)
+        XPos = 2000 - (self.PhotoWidth // 2) * self.StepsWidth
+        YPos = 4000 - (self.PhotoHeight // 2) * self.StepsHeight
+        self.XNema.Step(sign*XPos)
+        self.YNema.Step(sign*YPos)
         time.sleep(1)
         self.EPin.write(1)
+        time.sleep(0.003)
 
-    def ScanNow(self, PathsaveTo: str, LogFile=None, mega: MegaBoard = None):
+    def ScanNow(self, PathsaveTo: str, LogFile=None, shaft=None):
         if self.UsbOn:
             self.UsbOn.Open()
+            time.sleep(0.01)
 
         get_cam = False
         time_check = time.time()
@@ -83,13 +85,13 @@ class Table:
                     get_cam = True
                     break
         if not get_cam:
-            raise NoCam(mega)
+            raise NoCam(shaft)
 
         self.Calibrate()
         time.sleep(2)
         Camera = cv2.VideoCapture(self.CamIndex)
-        Camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1600)
-        Camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1200)
+        Camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        Camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 960)
         time.sleep(1)
         photo_count = 1
         full_path_save_to = PathsaveTo + "/images"
@@ -124,15 +126,15 @@ class Table:
                 self.EPin.write(0)
                 time.sleep(0.003)
                 if i % 2 == 0:
-                    self.YNema.Step(2 * self.StepsHeight)
+                    self.YNema.Step(-sign*self.StepsHeight)
                 else:
-                    self.YNema.Step(-2 * self.StepsHeight)
+                    self.YNema.Step(sign*self.StepsHeight)
                 self.EPin.write(1)
                 time.sleep(0.5)
                 photo_count += 1
             self.EPin.write(0)
             time.sleep(0.003)
-            self.XNema.Step(self.StepsWidth)
+            self.XNema.Step(sign*self.StepsWidth)
             self.EPin.write(1)
             time.sleep(0.003)
         Camera.release()
@@ -151,10 +153,11 @@ class Table:
             file.write(f"ScanTime:{time_end_scanning - time_start_scanning}\n")
             file.close()
 
-        if mega:
-            mega.LiftStep(-600)
-            mega.RightStepperPinE.write(1)
-            mega.exit()
+        if shaft:
+            shaft.Up()
+            time.sleep(0.5)
+            shaft.StopUp()
+
         biggest_photo = None
         if self.Neuro:
             Rust = 0
@@ -203,7 +206,7 @@ class Table:
             if time.time() - time_start > 50:
                 first_time = False
                 break
-            self.XNema.Step(-10)
+            self.XNema.Step(-sign*80)
             rd = self.XEnd.read()
             time.sleep(0.003)
             if not rd:
@@ -215,7 +218,7 @@ class Table:
             while self.XEnd.read():
                 if time.time() - time_start > 50:
                     break
-                self.XNema.Step(-10)
+                self.XNema.Step(-sign*80)
                 rd = self.XEnd.read()
                 time.sleep(0.003)
                 if not rd:
@@ -227,7 +230,7 @@ class Table:
             if time.time() - time_start > 50:
                 first_time = False
                 break
-            self.YNema.Step(20)
+            self.YNema.Step(-sign*80)
             rd = self.YEnd.read()
             time.sleep(0.003)
             if not rd:
@@ -239,7 +242,7 @@ class Table:
             while self.YEnd.read() and first_time:
                 if time.time() - time_start > 50:
                     break
-                self.YNema.Step(20)
+                self.YNema.Step(-sign*80)
                 rd = self.YEnd.read()
                 time.sleep(0.003)
                 if not rd:
@@ -250,11 +253,11 @@ class Table:
 
 
 class NoCam(Exception):
-    def __init__(self, mega: MegaBoard):
-        if mega:
-            mega.LiftStep(-600)
-            mega.RightStepperPinE.write(1)
-            mega.exit()
+    def __init__(self, shaft):
+        if shaft:
+            shaft.Up()
+            time.sleep(0.5)
+            shaft.StopUp()
 
     def __str__(self):
         return "USBCam"

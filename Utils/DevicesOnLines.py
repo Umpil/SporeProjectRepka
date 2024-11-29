@@ -98,7 +98,7 @@ class Rele:
         chip = gpiod.chip(Line)
         self.Pin = chip.get_line(Pin)
         config = gpiod.line_request()
-        config.consumer = "StepPin"
+        config.consumer = f"RelePin_{self.PinNumber}"
         config.request_type = gpiod.line_request.DIRECTION_OUTPUT
         self.Pin.request(config)
 
@@ -115,6 +115,60 @@ class Rele:
 
     def __bool__(self):
         return True
+
+
+class Shaft:
+    def __init__(self, PinUp: int, PinDown: int, Line=1):
+        self.PinUpNumber = PinUp
+        self.PinDownNumber = PinDown
+        chip = gpiod.chip(Line)
+        self.PinUp = chip.get_line(PinUp)
+        self.PinDown = chip.get_line(PinDown)
+        config_up = gpiod.line_request()
+        config_up.consumer = f"ShaftUp_{self.PinUpNumber}"
+        config_up.request_type = gpiod.line_request.DIRECTION_OUTPUT
+        self.PinUp.request(config_up)
+
+        config_down = gpiod.line_request()
+        config_down.consumer = f"ShaftDown_{self.PinUpNumber}"
+        config_down.request_type = gpiod.line_request.DIRECTION_OUTPUT
+        self.PinDown.request(config_down)
+
+    def Up(self):
+        self.PinUp.set_value(1)
+        time.sleep(0.01)
+
+    def StopUp(self):
+        self.PinUp.set_value(0)
+
+    def Down(self):
+        self.PinDown.set_value(1)
+
+    def StopDown(self):
+        self.PinDown.set_value(0)
+
+
+class Rotator:
+    def __init__(self, PinStart: int, Line: int = 1):
+        self.PinNumber = PinStart
+        chip = gpiod.chip(Line)
+        self.Pin = chip.get_line(PinStart)
+        config = gpiod.line_request()
+        config.consumer = f"RotatorPin_{self.PinNumber}"
+        config.request_type = gpiod.line_request.DIRECTION_OUTPUT
+        self.Pin.request(config)
+
+        self.Pin.set_value(0)
+        time.sleep(0.01)
+
+    def StartRotate(self):
+        self.Pin.set_value(1)
+        time.sleep(0.01)
+
+    def StopRotate(self):
+        self.Pin.set_value(0)
+        time.sleep(0.01)
+
 
 # InputVent = Rele(10)
 # OutputVent = Rele(8)
