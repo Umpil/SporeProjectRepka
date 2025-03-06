@@ -117,7 +117,7 @@ def Run(Area="15x30", TimePyrge=10, TimeSpraying=360, date=0):
 
         # STEPPERS
         Xstepper = NemaStepper(Uno, StepsPerRevolutionUNO, XStepperPinS, XStepperPinD)
-        YStepper = NemaStepper(Uno, 400, YSteppperPinS, YStepperPinD)
+        YStepper = NemaStepper(Uno, 800, YSteppperPinS, YStepperPinD)
         ZStepper = NemaStepper(Uno, StepsPerRevolutionUNO, ZStepperPinS, ZStepperPinD)
 
         # PHOTO TO TAKE
@@ -131,10 +131,10 @@ def Run(Area="15x30", TimePyrge=10, TimeSpraying=360, date=0):
         FilterVent = Rele(9)
         Pomp = Rele(10)
         Ligth = Rele(19)
-        Cam = Rele(18)
-        UsbOn = Rele(0)
-        rotator_ = Rotator(0)
-        shaft_ = Shaft(0, 0)
+        Cam = Rele(0)
+        UsbOn = Rele(18)
+        rotator_ = Rotator(21)
+        shaft_ = Shaft(2, 1)
 
         # TABLE
         Stol = Table(Xstepper, YStepper, ZStepper, 1, UsbOn=UsbOn, Epin=EnablePin, PhotoWidth=PhotoWidth, PhotoHeight=PhotoHeight, XEnd=9, YEnd=10, Light=Ligth, Cam=Cam)
@@ -239,7 +239,9 @@ def Run(Area="15x30", TimePyrge=10, TimeSpraying=360, date=0):
 
         # FIFTH MOVE ###########################################################################
         file = open(filename, "a", encoding="utf-8")
+        time.sleep(0.01)
         file.write("Start Scanning\n")
+        time.sleep(0.01)
         file.close()
         TimeScan = time.time()
         photo, result = Stol.ScanNow(directory, filename, shaft=shaft_)

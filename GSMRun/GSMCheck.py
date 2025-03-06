@@ -1,19 +1,19 @@
 import datetime
 import subprocess
 import time
-from GSMRun.StartProcess import Run
-from Utils.serianumber import repka_id, url_check, username, password
+from StartProcess_GSM import Run
+from serianumber import repka_id, url_check, username, password
 import sim800l
 import json
 
-checks = {"username": username, "repka_id": repka_id, "password": password}
+checks = {"un": username, "ri": repka_id, "pw": password}
 time_ask = 300
 
 try:
     sim = sim800l.SIM800L()
     sim.setup()
     time.sleep(1)
-    responce = sim.http(url=url_check, data=json.dumps(checks).encode(), method="PUT", apn="internet.tele2.ru", allow_redirecton=True)
+    responce = sim.http(url=url_check, data=json.dumps(checks).encode(), method="PUT", apn="internet.tele2.ru", allow_redirection=True)
     if not responce:
         raise Exception
     data: dict = json.loads(responce)

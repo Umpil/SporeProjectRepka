@@ -71,6 +71,9 @@ class Table:
             self.UsbOn.Open()
             time.sleep(0.01)
 
+        if not os.path.exists(PathsaveTo):
+            os.mkdir(PathsaveTo)
+
         get_cam = False
         time_check = time.time()
 
@@ -99,10 +102,13 @@ class Table:
 
         if not os.path.exists(LogFile):
             open("/home/admin/imagestable/log.txt", "w", encoding='utf-8').close()
+            time.sleep(0.01)
 
         if LogFile:
             file = open(LogFile, 'a', encoding='utf-8')
+            time.sleep(0.01)
             file.write("Good Start\n")
+            time.sleep(0.01)
             file.close()
 
         self.SendToPos()
@@ -120,7 +126,9 @@ class Table:
 
                 if LogFile:
                     file = open(LogFile, 'a', encoding='utf-8')
+                    time.sleep(0.01)
                     file.write(f"Photo_{photo_count}:Succses\n")
+                    time.sleep(0.01)
                     file.close()
 
                 self.EPin.write(0)
@@ -150,7 +158,9 @@ class Table:
         time_end_scanning = time.time()
         if LogFile:
             file = open(LogFile, 'a', encoding='utf-8')
+            time.sleep(0.01)
             file.write(f"ScanTime:{time_end_scanning - time_start_scanning}\n")
+            time.sleep(0.01)
             file.close()
 
         if shaft:
@@ -188,10 +198,22 @@ class Table:
             result = {"Rust": Rust, "Much": Much, "Pirena": Pirena}
         else:
             result = {}
+        ret_mass = []
         if biggest_photo:
-            return [full_path_save_to + "/1.jpg", biggest_photo, full_path_save_to + f"/{self.PhotoWidth * self.PhotoHeight}.jpg"], result
+            ret_mass.append(full_path_save_to + "/1.jpg")
+            ret_mass.append(biggest_photo)
+            for i in range(self.PhotoWidth, self.PhotoWidth * self.PhotoHeight - 1, self.PhotoWidth*self.PhotoHeight // 10):
+                ret_mass.append(full_path_save_to + f"/{i}")
+            ret_mass.append(full_path_save_to + f"/{self.PhotoWidth * self.PhotoHeight}.jpg")
+            return ret_mass, result
 
-        return [full_path_save_to + "/1.jpg", full_path_save_to + "/1.jpg", full_path_save_to + f"/{self.PhotoWidth * self.PhotoHeight}.jpg"], result
+        ret_mass.append(full_path_save_to + "/1.jpg")
+        ret_mass.append(full_path_save_to + "/2.jpg")
+        for i in range(self.PhotoWidth, self.PhotoWidth * self.PhotoHeight - 1,
+                       self.PhotoWidth * self.PhotoHeight // 10):
+            ret_mass.append(full_path_save_to + f"/{i}")
+        ret_mass.append(full_path_save_to + f"/{self.PhotoWidth * self.PhotoHeight}.jpg")
+        return ret_mass, result
 
     def Calibrate(self) -> None:
         it = pyfirmata.util.Iterator(self.XNema.Master)
